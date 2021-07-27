@@ -2,7 +2,7 @@ import os
 import requests
 import datetime as dt
 from newsapi import NewsApiClient
-import smtplib
+from twilio.rest import Client
 
 
 API_KEY_STOCK = os.environ.get("API_KEY_STOCK")
@@ -50,19 +50,35 @@ def obtain_news():
     newsapi = NewsApiClient(api_key=API_KEY_NEWS)
 
     # /v2/top-headlines
-    top_headlines = newsapi.get_top_headlines(q='Tesla',
+    top_headlines = newsapi.get_top_headlines(q='Tesla', #Change the keyword
                                               category='business',
                                               language='en',
                                               country='us')
     return top_headlines
 
 
-def notify_user(news):
-    with smtplib("smtp-mail.outlook.com") as email_smtp:
-
+def notify_user(news, percentage):
+    account_sid = os.environ['TWILIO_ACCOUNT_SID']
+    auth_token = os.environ['TWILIO_AUTH_TOKEN']
+    client = Client(account_sid, auth_token)
+    if percentage < 0:
+        icon = '🔻'
+    else:
+        icon = '🔺'
+    for new in news["articles"]:
+        if len(new['description']) < 200:
+            x = len(new['description'])
+        else:
+            x = 200
+        body = f"{SYMBOL} {icon} {round(percentage,2)}%\nHeading: {new['title']}\nBrief: {new['description'][:x]}..."
+        message = client.messages.create(
+            body=body,
+            from_=os.environ['FROM_PHONE'],
+            to=os.environ['TO_PHONE']
+        )
 
 data_stock = get_stock_data()
 percentage = calculate_percentage(data_stock)
-if 12 > 10 or percentage < -10:
+if percentage > 10 or percentage < -10:
     news = obtain_news()
-    notify_user(news)
+    notify_user(news, percentage)

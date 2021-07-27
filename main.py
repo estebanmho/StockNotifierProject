@@ -9,6 +9,9 @@ API_KEY_STOCK = os.environ.get("API_KEY_STOCK")
 API_KEY_NEWS = os.environ.get("API_KEY_NEWS_STOCK")
 SYMBOL = os.environ.get("SYMBOL_STOCK")
 NOW = dt.datetime.now()
+EMAIL = os.environ.get("EMAIL")
+PASSWORD = os.environ.get("PASSWORD")
+TO_EMAIL = os.environ.get("TO_EMAIL")
 
 
 def get_stock_data():
@@ -49,7 +52,6 @@ def calculate_percentage(stock_data) -> float:
 def obtain_news():
     newsapi = NewsApiClient(api_key=API_KEY_NEWS)
 
-    # /v2/top-headlines
     top_headlines = newsapi.get_top_headlines(q='Tesla',
                                               category='business',
                                               language='en',
@@ -57,12 +59,21 @@ def obtain_news():
     return top_headlines
 
 
-def notify_user(news):
-    with smtplib("smtp-mail.outlook.com") as email_smtp:
+def notify_user(news, percentage):
+    with smtplib.SMTP("smtp-mail.outlook.com") as email_smtp:
+        email_smtp.starttls()
+        email_smtp.login(user=EMAIL, password=PASSWORD)
+        for new in news["articles"]:
+            body2=""
+            body = f"{SYMBOL} {round(percentage, 2)}%\nHeading: {new['title']}\nBrief: {new['description']}..."
+            for character in body:
+                if character.isascii() or character =="\n":
+                    body2 += character
+            email_smtp.sendmail(from_addr=EMAIL, to_addrs=TO_EMAIL, msg="Subject:STOCK update\n\n" + body2)
 
 
 data_stock = get_stock_data()
 percentage = calculate_percentage(data_stock)
-if 12 > 10 or percentage < -10:
+if percentage > 10 or percentage < -10:
     news = obtain_news()
-    notify_user(news)
+    notify_user(news, percentage)
